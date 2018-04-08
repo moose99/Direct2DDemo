@@ -53,7 +53,6 @@ DemoApp::DemoApp() :
 {
 }
 
-
 DemoApp::~DemoApp()
 {
 	SafeRelease(&m_pDirect2dFactory);
@@ -110,7 +109,6 @@ HRESULT DemoApp::Initialize()
 		// to create its own windows.
 		m_pDirect2dFactory->GetDesktopDpi(&dpiX, &dpiY);
 
-
 		// Create the window.
 		m_hwnd = CreateWindow(
 			L"D2DDemoApp",
@@ -157,76 +155,6 @@ HRESULT DemoApp::CreateDeviceIndependentResources()
 	}
 	return hr;
 }
-
-HRESULT DemoApp::LoadBitmapFromFile(
-	ID2D1RenderTarget *pRenderTarget,
-	IWICImagingFactory *pIWICFactory,
-	PCWSTR uri,
-	UINT destinationWidth,
-	UINT destinationHeight,
-	ID2D1Bitmap **ppBitmap
-)
-{
-	IWICBitmapDecoder *pDecoder = NULL;
-	IWICBitmapFrameDecode *pSource = NULL;
-	IWICStream *pStream = NULL;
-	IWICFormatConverter *pConverter = NULL;
-	IWICBitmapScaler *pScaler = NULL;
-
-	HRESULT hr = pIWICFactory->CreateDecoderFromFilename(
-		uri,
-		NULL,
-		GENERIC_READ,
-		WICDecodeMetadataCacheOnLoad,
-		&pDecoder
-	);
-
-	if (SUCCEEDED(hr))
-	{
-		// Create the initial frame.
-		hr = pDecoder->GetFrame(0, &pSource);
-	}
-
-	if (SUCCEEDED(hr))
-	{
-
-		// Convert the image format to 32bppPBGRA
-		// (DXGI_FORMAT_B8G8R8A8_UNORM + D2D1_ALPHA_MODE_PREMULTIPLIED).
-		hr = pIWICFactory->CreateFormatConverter(&pConverter);
-
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		hr = pConverter->Initialize(
-			pSource,
-			GUID_WICPixelFormat32bppPBGRA,
-			WICBitmapDitherTypeNone,
-			NULL,
-			0.f,
-			WICBitmapPaletteTypeMedianCut
-		);
-	}
-
-	// Create a Direct2D bitmap from the WIC bitmap.
-	if (SUCCEEDED(hr))
-	{
-		hr = pRenderTarget->CreateBitmapFromWicBitmap(
-			pConverter,
-			NULL,
-			ppBitmap
-		);
-	}
-
-	SafeRelease(&pDecoder);
-	SafeRelease(&pSource);
-	SafeRelease(&pStream);
-	SafeRelease(&pConverter);
-	SafeRelease(&pScaler);
-
-	return hr;
-}
-
 HRESULT DemoApp::CreateDeviceResources()
 {
 	HRESULT hr = S_OK;
@@ -284,6 +212,19 @@ HRESULT DemoApp::CreateDeviceResources()
 				&m_pBitmap
 			);
 		}
+
+		if (SUCCEEDED(hr))
+		{
+			// Choose the tiling mode for the bitmap brush.
+			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
+				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_WRAP, D2D1_EXTEND_MODE_WRAP);
+
+			hr = m_pRenderTarget->CreateBitmapBrush(
+				m_pBitmap,
+				brushProperties,
+				&m_pBitmapBrush
+			);
+		}
 	}
 
 	return hr;
@@ -294,83 +235,6 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pRenderTarget);
 	SafeRelease(&m_pLightSlateGrayBrush);
 	SafeRelease(&m_pCornflowerBlueBrush);
-}
-
-LRESULT CALLBACK DemoApp::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	LRESULT result = 0;
-
-	if (message == WM_CREATE)
-	{
-		LPCREATESTRUCT pcs = (LPCREATESTRUCT)lParam;
-		DemoApp *pDemoApp = (DemoApp *)pcs->lpCreateParams;
-
-		::SetWindowLongPtrW(
-			hwnd,
-			GWLP_USERDATA,
-			PtrToUlong(pDemoApp)
-		);
-
-		result = 1;
-	}
-	else
-	{
-		DemoApp *pDemoApp = reinterpret_cast<DemoApp *>(static_cast<LONG_PTR>(
-			::GetWindowLongPtrW(
-				hwnd,
-				GWLP_USERDATA
-			)));
-
-		bool wasHandled = false;
-
-		if (pDemoApp)
-		{
-			switch (message)
-			{
-			case WM_SIZE:
-			{
-				UINT width = LOWORD(lParam);
-				UINT height = HIWORD(lParam);
-				pDemoApp->OnResize(width, height);
-			}
-			result = 0;
-			wasHandled = true;
-			break;
-
-			case WM_DISPLAYCHANGE:
-			{
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-			result = 0;
-			wasHandled = true;
-			break;
-
-			case WM_PAINT:
-			{
-				pDemoApp->OnRender();
-				ValidateRect(hwnd, NULL);
-			}
-			result = 0;
-			wasHandled = true;
-			break;
-
-			case WM_DESTROY:
-			{
-				PostQuitMessage(0);
-			}
-			result = 1;
-			wasHandled = true;
-			break;
-			}
-		}
-
-		if (!wasHandled)
-		{
-			result = DefWindowProc(hwnd, message, wParam, lParam);
-		}
-	}
-
-	return result;
 }
 
 //
@@ -396,13 +260,13 @@ void DemoApp::DrawEllipse()
 	int height = static_cast<int>(rtSize.height);
 
 	D2D1_ELLIPSE ellipse = D2D1::Ellipse(
-		D2D1::Point2F(width-100.f, height-100.f),	// center
+		D2D1::Point2F(width - 100.f, height - 100.f),	// center
 		75.f,	// radius X
 		50.f	// radius Y
 	);
 
 	m_pRenderTarget->DrawEllipse(ellipse, m_pBlackBrush, 10.f);
-	m_pRenderTarget->FillEllipse(ellipse, m_pLightSlateGrayBrush);
+	m_pRenderTarget->FillEllipse(ellipse, m_pBitmapBrush);
 }
 
 //

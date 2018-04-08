@@ -155,6 +155,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D2DDemoApp.cpp" />
+    <ClCompile Include="D2DDemoAppBitmap.cpp" />
+    <ClCompile Include="D2DDemoAppWndProc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="D2DDemoApp.ico" />

@@ -6,9 +6,9 @@
 // C RunTime Header Files:
 #include <stdlib.h>
 
-
 #include <d2d1.h>
 #include <d2d1helper.h>
+#include <wincodec.h>
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
@@ -46,10 +46,21 @@ private:
 	// Release device-dependent resource.
 	void DiscardDeviceResources();
 
+	HRESULT LoadBitmapFromFile(
+		ID2D1RenderTarget *pRenderTarget,
+		IWICImagingFactory *pIWICFactory,
+		PCWSTR uri,
+		UINT destinationWidth,
+		UINT destinationHeight,
+		ID2D1Bitmap **ppBitmap
+	);
+
 	// Draw content.
 	HRESULT OnRender();
 	void DrawGrid();
 	void DrawRectangles();
+	void DrawEllipse();
+	void DrawBitmap();
 
 	// Resize the render target.
 	void OnResize(UINT width, UINT height);
@@ -68,4 +79,8 @@ private:
 	ID2D1HwndRenderTarget* m_pRenderTarget;
 	ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
+	ID2D1SolidColorBrush* m_pBlackBrush;
+	ID2D1BitmapBrush *m_pBitmapBrush;
+	ID2D1Bitmap *m_pBitmap;
+	IWICImagingFactory *m_pWICFactory;
 };

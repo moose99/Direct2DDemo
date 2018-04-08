@@ -6,13 +6,50 @@
 
 #include "D2DDemoApp.h"
 
+//
+// WINMAIN
+//
+int WINAPI WinMain(
+	HINSTANCE /* hInstance */,
+	HINSTANCE /* hPrevInstance */,
+	LPSTR /* lpCmdLine */,
+	int /* nCmdShow */
+)
+{
+	// Use HeapSetInformation to specify that the process should
+	// terminate if the heap manager detects an error in any heap used
+	// by the process.
+	// The return value is ignored, because we want to continue running in the
+	// unlikely event that HeapSetInformation fails.
+	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
+
+	if (SUCCEEDED(CoInitialize(NULL)))
+	{
+		{
+			DemoApp app;
+
+			if (SUCCEEDED(app.Initialize()))
+			{
+				app.RunMessageLoop();
+			}
+		}
+		CoUninitialize();
+	}
+
+	return 0;
+}
+
 
 DemoApp::DemoApp() :
 	m_hwnd(NULL),
 	m_pDirect2dFactory(NULL),
 	m_pRenderTarget(NULL),
 	m_pLightSlateGrayBrush(NULL),
-	m_pCornflowerBlueBrush(NULL)
+	m_pCornflowerBlueBrush(NULL),
+	m_pBlackBrush(NULL),
+	m_pBitmapBrush(NULL),
+	m_pBitmap(NULL),
+	m_pWICFactory(NULL)
 {
 }
 
@@ -23,6 +60,10 @@ DemoApp::~DemoApp()
 	SafeRelease(&m_pRenderTarget);
 	SafeRelease(&m_pLightSlateGrayBrush);
 	SafeRelease(&m_pCornflowerBlueBrush);
+	SafeRelease(&m_pBlackBrush);
+	SafeRelease(&m_pBitmapBrush);
+	SafeRelease(&m_pBitmap);
+	SafeRelease(&m_pWICFactory);
 }
 
 void DemoApp::RunMessageLoop()
@@ -34,7 +75,7 @@ void DemoApp::RunMessageLoop()
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-} 
+}
 
 HRESULT DemoApp::Initialize()
 {
@@ -95,42 +136,93 @@ HRESULT DemoApp::Initialize()
 	return hr;
 }
 
-int WINAPI WinMain(
-	HINSTANCE /* hInstance */,
-	HINSTANCE /* hPrevInstance */,
-	LPSTR /* lpCmdLine */,
-	int /* nCmdShow */
-)
-{
-	// Use HeapSetInformation to specify that the process should
-	// terminate if the heap manager detects an error in any heap used
-	// by the process.
-	// The return value is ignored, because we want to continue running in the
-	// unlikely event that HeapSetInformation fails.
-	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
-
-	if (SUCCEEDED(CoInitialize(NULL)))
-	{
-		{
-			DemoApp app;
-
-			if (SUCCEEDED(app.Initialize()))
-			{
-				app.RunMessageLoop();
-			}
-		}
-		CoUninitialize();
-	}
-
-	return 0;
-}
-
 HRESULT DemoApp::CreateDeviceIndependentResources()
 {
 	HRESULT hr = S_OK;
 
 	// Create a Direct2D factory.
 	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pDirect2dFactory);
+
+	// Create imaging factory
+	if (SUCCEEDED(hr))
+	{
+		// Create WIC factory.
+		hr = CoCreateInstance(
+			CLSID_WICImagingFactory,
+			NULL,
+			CLSCTX_INPROC_SERVER,
+			IID_IWICImagingFactory,
+			reinterpret_cast<void **>(&m_pWICFactory)
+		);
+	}
+	return hr;
+}
+
+HRESULT DemoApp::LoadBitmapFromFile(
+	ID2D1RenderTarget *pRenderTarget,
+	IWICImagingFactory *pIWICFactory,
+	PCWSTR uri,
+	UINT destinationWidth,
+	UINT destinationHeight,
+	ID2D1Bitmap **ppBitmap
+)
+{
+	IWICBitmapDecoder *pDecoder = NULL;
+	IWICBitmapFrameDecode *pSource = NULL;
+	IWICStream *pStream = NULL;
+	IWICFormatConverter *pConverter = NULL;
+	IWICBitmapScaler *pScaler = NULL;
+
+	HRESULT hr = pIWICFactory->CreateDecoderFromFilename(
+		uri,
+		NULL,
+		GENERIC_READ,
+		WICDecodeMetadataCacheOnLoad,
+		&pDecoder
+	);
+
+	if (SUCCEEDED(hr))
+	{
+		// Create the initial frame.
+		hr = pDecoder->GetFrame(0, &pSource);
+	}
+
+	if (SUCCEEDED(hr))
+	{
+
+		// Convert the image format to 32bppPBGRA
+		// (DXGI_FORMAT_B8G8R8A8_UNORM + D2D1_ALPHA_MODE_PREMULTIPLIED).
+		hr = pIWICFactory->CreateFormatConverter(&pConverter);
+
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		hr = pConverter->Initialize(
+			pSource,
+			GUID_WICPixelFormat32bppPBGRA,
+			WICBitmapDitherTypeNone,
+			NULL,
+			0.f,
+			WICBitmapPaletteTypeMedianCut
+		);
+	}
+
+	// Create a Direct2D bitmap from the WIC bitmap.
+	if (SUCCEEDED(hr))
+	{
+		hr = pRenderTarget->CreateBitmapFromWicBitmap(
+			pConverter,
+			NULL,
+			ppBitmap
+		);
+	}
+
+	SafeRelease(&pDecoder);
+	SafeRelease(&pSource);
+	SafeRelease(&pStream);
+	SafeRelease(&pConverter);
+	SafeRelease(&pScaler);
 
 	return hr;
 }
@@ -156,7 +248,6 @@ HRESULT DemoApp::CreateDeviceResources()
 			&m_pRenderTarget
 		);
 
-
 		if (SUCCEEDED(hr))
 		{
 			// Create a gray brush.
@@ -173,11 +264,30 @@ HRESULT DemoApp::CreateDeviceResources()
 				&m_pCornflowerBlueBrush
 			);
 		}
+		if (SUCCEEDED(hr))
+		{
+			// Create a black brush.
+			hr = m_pRenderTarget->CreateSolidColorBrush(
+				D2D1::ColorF(D2D1::ColorF::Black),
+				&m_pBlackBrush
+			);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Create a bitmap by loading it from a file.
+			hr = LoadBitmapFromFile(
+				m_pRenderTarget,
+				m_pWICFactory,
+				L".\\sampleImage.png",
+				100,
+				0,	// don't change height
+				&m_pBitmap
+			);
+		}
 	}
 
 	return hr;
 }
-
 
 void DemoApp::DiscardDeviceResources()
 {
@@ -264,6 +374,38 @@ LRESULT CALLBACK DemoApp::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 }
 
 //
+// Draw a bitmap in the upper-left corner of the window.
+//
+void DemoApp::DrawBitmap()
+{
+	D2D1_SIZE_F size = m_pBitmap->GetSize();
+
+	m_pRenderTarget->DrawBitmap(
+		m_pBitmap,
+		D2D1::RectF(0.0f, 0.0f, size.width, size.height)
+	);
+}
+
+//
+// Draw an ellipse at bottom right
+//
+void DemoApp::DrawEllipse()
+{
+	D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
+	int width = static_cast<int>(rtSize.width);
+	int height = static_cast<int>(rtSize.height);
+
+	D2D1_ELLIPSE ellipse = D2D1::Ellipse(
+		D2D1::Point2F(width-100.f, height-100.f),	// center
+		75.f,	// radius X
+		50.f	// radius Y
+	);
+
+	m_pRenderTarget->DrawEllipse(ellipse, m_pBlackBrush, 10.f);
+	m_pRenderTarget->FillEllipse(ellipse, m_pLightSlateGrayBrush);
+}
+
+//
 // Draw a grid background.
 //
 void DemoApp::DrawGrid()
@@ -336,6 +478,8 @@ HRESULT DemoApp::OnRender()
 
 		DrawGrid();
 		DrawRectangles();
+		DrawEllipse();
+		DrawBitmap();
 
 		hr = m_pRenderTarget->EndDraw();
 	}

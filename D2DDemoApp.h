@@ -46,6 +46,8 @@ private:
 	// Release device-dependent resource.
 	void DiscardDeviceResources();
 
+	HRESULT CreatePathGeometry();
+	HRESULT CreateLinearGradientBrush();
 	HRESULT LoadBitmapFromFile(
 		ID2D1RenderTarget *pRenderTarget,
 		IWICImagingFactory *pIWICFactory,
@@ -61,6 +63,7 @@ private:
 	void DrawRectangles();
 	void DrawEllipse();
 	void DrawBitmap();
+	void DrawGeometry();
 
 	// Resize the render target.
 	void OnResize(UINT width, UINT height);
@@ -81,6 +84,8 @@ private:
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
 	ID2D1SolidColorBrush* m_pBlackBrush;
 	ID2D1BitmapBrush *m_pBitmapBrush;
+	ID2D1LinearGradientBrush *m_pLGBrush;
 	ID2D1Bitmap *m_pBitmap;
 	IWICImagingFactory *m_pWICFactory;
+	ID2D1PathGeometry *m_pPathGeometry;
 };

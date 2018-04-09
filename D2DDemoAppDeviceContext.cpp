@@ -25,6 +25,7 @@ HRESULT DemoApp::CreateDeviceContext()
 	// Create a D3D device and a swap chain sized to the child window.
 	UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
+
 #ifdef _DEBUG
 	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
@@ -92,6 +93,7 @@ HRESULT DemoApp::CreateDeviceContext()
 	{
 		// Create a device context from the D2D device.
 		hr = m_d2dDevice->CreateDeviceContext(
+			/* D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTI_THREADED_OPTIMIZATIONS */
 			D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
 			&m_d2dContext
 		);

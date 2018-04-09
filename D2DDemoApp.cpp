@@ -23,7 +23,9 @@ DemoApp::DemoApp() :
 	m_pPathGeometry(NULL),
 	m_swapChain(NULL),
 	m_d2dDevice(NULL),
-	m_d2dContext(NULL)
+	m_d2dContext(NULL),
+	m_pGaussianBlurEffect(NULL),
+	m_pColorMatrixEffect(NULL)
 {
 }
 
@@ -249,6 +251,26 @@ HRESULT DemoApp::CreateDeviceResources()
 		{
 			hr = CreateLinearGradientBrush();
 		}
+		if (SUCCEEDED(hr))
+		{
+			hr = m_d2dContext->CreateEffect(CLSID_D2D1GaussianBlur, &m_pGaussianBlurEffect);
+			m_pGaussianBlurEffect->SetInput(0, m_pBitmap);
+			hr = m_pGaussianBlurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, 6.0f);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = m_d2dContext->CreateEffect(CLSID_D2D1ColorMatrix, &m_pColorMatrixEffect);
+			m_pColorMatrixEffect->SetInput(0, m_pBitmap);
+
+			// swap red and blue channels
+			D2D1_MATRIX_5X4_F matrix = D2D1::Matrix5x4F(
+				0, 0, 1, 0,  // R
+				0, 1, 0, 0,  // G
+				1, 0, 0, 0,  // B
+				0, 0, 0, 1,  // A
+				0, 0, 0, 0);
+			hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
+		}
 
 		SafeRelease(&bitmap);
 		SafeRelease(&surface);
@@ -359,6 +381,8 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pBitmapBrush);
 	SafeRelease(&m_pLGBrush);
 	SafeRelease(&m_pBitmap);
+	SafeRelease(&m_pGaussianBlurEffect);
+	SafeRelease(&m_pColorMatrixEffect);
 	SafeRelease(&m_swapChain);
 	SafeRelease(&m_d2dDevice);
 	SafeRelease(&m_d2dContext);
@@ -388,6 +412,35 @@ void DemoApp::DrawBitmap()
 	D2D1_SIZE_F size = m_pBitmap->GetSize();
 
 	m_d2dContext->DrawBitmap(m_pBitmap, D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+
+	// draw blurred image effect
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(0.f, size.height));
+	m_d2dContext->DrawImage(m_pGaussianBlurEffect);
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+}
+
+//
+// Draw a blurred image effect
+//
+void DemoApp::DrawEffectBlur()
+{
+	D2D1_SIZE_F size = m_pBitmap->GetSize();
+
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(0.f, size.height));
+	m_d2dContext->DrawImage(m_pGaussianBlurEffect);
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+}
+
+//
+// Draw a color matrix image effect
+//
+void DemoApp::DrawEffectColorMatrix()
+{
+	D2D1_SIZE_F size = m_pBitmap->GetSize();
+
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(0.f, size.height*2));
+	m_d2dContext->DrawImage(m_pColorMatrixEffect);
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 }
 
 //
@@ -487,6 +540,8 @@ HRESULT DemoApp::OnRender()
 		DrawRectangles();
 		DrawEllipse();
 		DrawBitmap();
+		DrawEffectBlur();
+		DrawEffectColorMatrix();
 		DrawGeometry();
 
 		hr = m_d2dContext->EndDraw();

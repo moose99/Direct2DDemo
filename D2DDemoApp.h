@@ -66,6 +66,8 @@ private:
 	void DrawRectangles();
 	void DrawEllipse();
 	void DrawBitmap();
+	void DrawEffectBlur();
+	void DrawEffectColorMatrix();
 	void DrawGeometry();
 
 	// Resize the render target.
@@ -100,4 +102,6 @@ private:
 	ID2D1BitmapBrush *m_pBitmapBrush;
 	ID2D1LinearGradientBrush *m_pLGBrush;
 	ID2D1Bitmap *m_pBitmap;
+	ID2D1Effect *m_pGaussianBlurEffect;
+	ID2D1Effect *m_pColorMatrixEffect;
 };

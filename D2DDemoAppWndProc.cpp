@@ -70,14 +70,15 @@ LRESULT CALLBACK DemoApp::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			switch (message)
 			{
 			case WM_SIZE:
-			{
-				UINT width = LOWORD(lParam);
-				UINT height = HIWORD(lParam);
-				pDemoApp->OnResize(width, height);
-			}
-			result = 0;
-			wasHandled = true;
-			break;
+				if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED)
+				{
+					UINT width = LOWORD(lParam);
+					UINT height = HIWORD(lParam);
+					pDemoApp->OnResize(width, height);
+					result = 0;
+					wasHandled = true;
+				}
+				break;
 
 			case WM_DISPLAYCHANGE:
 			{

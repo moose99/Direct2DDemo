@@ -6,8 +6,10 @@
 // C RunTime Header Files:
 #include <stdlib.h>
 
-#include <d2d1.h>
+#include <d2d1_1.h>
 #include <d2d1helper.h>
+#include <d3d11.h>
+
 #include <wincodec.h>
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -46,10 +48,11 @@ private:
 	// Release device-dependent resource.
 	void DiscardDeviceResources();
 
+	HRESULT CreateDeviceContext();
 	HRESULT CreatePathGeometry();
 	HRESULT CreateLinearGradientBrush();
 	HRESULT LoadBitmapFromFile(
-		ID2D1RenderTarget *pRenderTarget,
+		ID2D1DeviceContext* d2dContext, 
 		IWICImagingFactory *pIWICFactory,
 		PCWSTR uri,
 		UINT destinationWidth,
@@ -77,8 +80,19 @@ private:
 	);
 
 private:
+	bool m_resourcesValid;                      // Whether or not the device-dependent resources are ready to use.
+
 	HWND m_hwnd;
-	ID2D1Factory* m_pDirect2dFactory;
+
+	/* device independent resources */
+	ID2D1Factory1* m_pDirect2dFactory;
+	IWICImagingFactory *m_pWICFactory;
+	ID2D1PathGeometry *m_pPathGeometry;
+
+	/* device dependent resources */
+	IDXGISwapChain* m_swapChain;
+	ID2D1Device* m_d2dDevice;
+	ID2D1DeviceContext* m_d2dContext;
 	ID2D1HwndRenderTarget* m_pRenderTarget;
 	ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
@@ -86,6 +100,4 @@ private:
 	ID2D1BitmapBrush *m_pBitmapBrush;
 	ID2D1LinearGradientBrush *m_pLGBrush;
 	ID2D1Bitmap *m_pBitmap;
-	IWICImagingFactory *m_pWICFactory;
-	ID2D1PathGeometry *m_pPathGeometry;
 };

@@ -10,9 +10,9 @@
 #define WIN_HEIGHT 768
 
 DemoApp::DemoApp() :
+	m_resourcesValid(false),
 	m_hwnd(NULL),
 	m_pDirect2dFactory(NULL),
-	m_pRenderTarget(NULL),
 	m_pLightSlateGrayBrush(NULL),
 	m_pCornflowerBlueBrush(NULL),
 	m_pBlackBrush(NULL),
@@ -20,16 +20,23 @@ DemoApp::DemoApp() :
 	m_pLGBrush(NULL),
 	m_pBitmap(NULL),
 	m_pWICFactory(NULL),
-	m_pPathGeometry(NULL)
+	m_pPathGeometry(NULL),
+	m_swapChain(NULL),
+	m_d2dDevice(NULL),
+	m_d2dContext(NULL)
 {
 }
 
 DemoApp::~DemoApp()
 {
+	// device independent resources
+	SafeRelease(&m_pPathGeometry);
+
+	DiscardDeviceResources();
+
+	// factories last
 	SafeRelease(&m_pDirect2dFactory);
 	SafeRelease(&m_pWICFactory);
-	SafeRelease(&m_pPathGeometry);
-	DiscardDeviceResources();
 }
 
 void DemoApp::RunMessageLoop()
@@ -106,7 +113,19 @@ HRESULT DemoApp::CreateDeviceIndependentResources()
 	HRESULT hr = S_OK;
 
 	// Create a Direct2D factory.
-	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pDirect2dFactory);
+	D2D1_FACTORY_OPTIONS options;
+	ZeroMemory(&options, sizeof(D2D1_FACTORY_OPTIONS));
+
+#if defined(_DEBUG)
+	// If the project is in a debug build, enable Direct2D debugging via SDK Layers
+	options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+#endif
+
+	hr = D2D1CreateFactory(
+		D2D1_FACTORY_TYPE_SINGLE_THREADED,
+		options,
+		&m_pDirect2dFactory
+	);
 
 	// Create imaging factory
 	if (SUCCEEDED(hr))
@@ -128,31 +147,60 @@ HRESULT DemoApp::CreateDeviceIndependentResources()
 
 	return hr;
 }
+
+// This method creates resources which are bound to a particular
+// Direct3D device. It's all centralized here, in case the resources
+// need to be recreated in case of Direct3D device loss (e.g. display
+// change, remoting, removal of video card, etc). The resources created
+// here can be used by multiple Direct2D device contexts which are created
+// from the same Direct2D device.
 HRESULT DemoApp::CreateDeviceResources()
 {
 	HRESULT hr = S_OK;
 
-	if (!m_pRenderTarget)
+	if (!m_resourcesValid)
 	{
-		RECT rc;
-		GetClientRect(m_hwnd, &rc);
+		hr = CreateDeviceContext();
 
-		D2D1_SIZE_U size = D2D1::SizeU(
-			rc.right - rc.left,
-			rc.bottom - rc.top
-		);
+		IDXGISurface* surface = nullptr;
+		if (SUCCEEDED(hr))
+		{
+			// Get a surface from the swap chain.
+			hr = m_swapChain->GetBuffer(0, IID_PPV_ARGS(&surface));
+		}
+		ID2D1Bitmap1* bitmap = nullptr;
+		if (SUCCEEDED(hr))
+		{
+			FLOAT dpiX, dpiY;
+			m_pDirect2dFactory->GetDesktopDpi(&dpiX, &dpiY);
 
-		// Create a Direct2D render target.
-		hr = m_pDirect2dFactory->CreateHwndRenderTarget(
-			D2D1::RenderTargetProperties(),
-			D2D1::HwndRenderTargetProperties(m_hwnd, size),
-			&m_pRenderTarget
-		);
+			// Create a bitmap pointing to the surface.
+			D2D1_BITMAP_PROPERTIES1 properties = D2D1::BitmapProperties1(
+				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+				D2D1::PixelFormat(
+					DXGI_FORMAT_B8G8R8A8_UNORM,
+					D2D1_ALPHA_MODE_IGNORE
+				),
+				dpiX,
+				dpiY
+			);
+
+			hr = m_d2dContext->CreateBitmapFromDxgiSurface(
+				surface,
+				&properties,
+				&bitmap
+			);
+		}
+		if (SUCCEEDED(hr))
+		{
+			// Set the bitmap as the target of our device context.
+			m_d2dContext->SetTarget(bitmap);
+		}
 
 		if (SUCCEEDED(hr))
 		{
 			// Create a gray brush.
-			hr = m_pRenderTarget->CreateSolidColorBrush(
+			hr = m_d2dContext->CreateSolidColorBrush(
 				D2D1::ColorF(D2D1::ColorF::LightSlateGray),
 				&m_pLightSlateGrayBrush
 			);
@@ -160,7 +208,7 @@ HRESULT DemoApp::CreateDeviceResources()
 		if (SUCCEEDED(hr))
 		{
 			// Create a blue brush.
-			hr = m_pRenderTarget->CreateSolidColorBrush(
+			hr = m_d2dContext->CreateSolidColorBrush(
 				D2D1::ColorF(D2D1::ColorF::CornflowerBlue),
 				&m_pCornflowerBlueBrush
 			);
@@ -168,7 +216,7 @@ HRESULT DemoApp::CreateDeviceResources()
 		if (SUCCEEDED(hr))
 		{
 			// Create a black brush.
-			hr = m_pRenderTarget->CreateSolidColorBrush(
+			hr = m_d2dContext->CreateSolidColorBrush(
 				D2D1::ColorF(D2D1::ColorF::Black),
 				&m_pBlackBrush
 			);
@@ -177,7 +225,7 @@ HRESULT DemoApp::CreateDeviceResources()
 		{
 			// Create a bitmap by loading it from a file.
 			hr = LoadBitmapFromFile(
-				m_pRenderTarget,
+				m_d2dContext,
 				m_pWICFactory,
 				L".\\sampleImage.png",
 				100,
@@ -185,24 +233,34 @@ HRESULT DemoApp::CreateDeviceResources()
 				&m_pBitmap
 			);
 		}
-
 		if (SUCCEEDED(hr))
 		{
 			// Choose the tiling mode for the bitmap brush.
 			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
 				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_WRAP, D2D1_EXTEND_MODE_WRAP);
 
-			hr = m_pRenderTarget->CreateBitmapBrush(
+			hr = m_d2dContext->CreateBitmapBrush(
 				m_pBitmap,
 				brushProperties,
 				&m_pBitmapBrush
 			);
 		}
-
 		if (SUCCEEDED(hr))
 		{
 			hr = CreateLinearGradientBrush();
 		}
+
+		SafeRelease(&bitmap);
+		SafeRelease(&surface);
+	}
+
+	if (FAILED(hr))
+	{
+		DiscardDeviceResources();
+	}
+	else
+	{
+		m_resourcesValid = true;
 	}
 
 	return hr;
@@ -222,7 +280,7 @@ HRESULT DemoApp::CreateLinearGradientBrush()
 		{ 1.f,{ 0.f, 0.f, 1.f, 1.f } },
 	};
 
-	HRESULT hr = m_pRenderTarget->CreateGradientStopCollection(
+	HRESULT hr = m_d2dContext->CreateGradientStopCollection(
 		stops,
 		ARRAYSIZE(stops),
 		&pGradientStops
@@ -230,7 +288,7 @@ HRESULT DemoApp::CreateLinearGradientBrush()
 
 	if (SUCCEEDED(hr))
 	{
-		hr = m_pRenderTarget->CreateLinearGradientBrush(
+		hr = m_d2dContext->CreateLinearGradientBrush(
 			D2D1::LinearGradientBrushProperties(
 				D2D1::Point2F(100, 0),
 				D2D1::Point2F(100, 200)),
@@ -291,15 +349,21 @@ HRESULT DemoApp::CreatePathGeometry()
 	return hr;
 }
 
+// discard resources on device loss
 void DemoApp::DiscardDeviceResources()
 {
-	SafeRelease(&m_pRenderTarget);
+	SafeRelease(&m_d2dContext);
 	SafeRelease(&m_pLightSlateGrayBrush);
 	SafeRelease(&m_pCornflowerBlueBrush);
 	SafeRelease(&m_pBlackBrush);
 	SafeRelease(&m_pBitmapBrush);
 	SafeRelease(&m_pLGBrush);
 	SafeRelease(&m_pBitmap);
+	SafeRelease(&m_swapChain);
+	SafeRelease(&m_d2dDevice);
+	SafeRelease(&m_d2dContext);
+
+	m_resourcesValid = false;
 }
 
 //
@@ -308,12 +372,12 @@ void DemoApp::DiscardDeviceResources()
 void DemoApp::DrawGeometry()
 {
 	// Translate drawing by 200 device-independent pixels.
-	m_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Translation(200.f, 0.f));
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(200.f, 0.f));
 
-	m_pRenderTarget->DrawGeometry(m_pPathGeometry, m_pBlackBrush, 10.f);
-	m_pRenderTarget->FillGeometry(m_pPathGeometry, m_pLGBrush);
+	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush, 10.f);
+	m_d2dContext->FillGeometry(m_pPathGeometry, m_pLGBrush);
 
-	m_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 }
 
 //
@@ -323,10 +387,7 @@ void DemoApp::DrawBitmap()
 {
 	D2D1_SIZE_F size = m_pBitmap->GetSize();
 
-	m_pRenderTarget->DrawBitmap(
-		m_pBitmap,
-		D2D1::RectF(0.0f, 0.0f, size.width, size.height)
-	);
+	m_d2dContext->DrawBitmap(m_pBitmap, D2D1::RectF(0.0f, 0.0f, size.width, size.height));
 }
 
 //
@@ -334,7 +395,7 @@ void DemoApp::DrawBitmap()
 //
 void DemoApp::DrawEllipse()
 {
-	D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
+	D2D1_SIZE_F rtSize = m_d2dContext->GetSize();
 	int width = static_cast<int>(rtSize.width);
 	int height = static_cast<int>(rtSize.height);
 
@@ -344,8 +405,8 @@ void DemoApp::DrawEllipse()
 		50.f	// radius Y
 	);
 
-	m_pRenderTarget->DrawEllipse(ellipse, m_pBlackBrush, 10.f);
-	m_pRenderTarget->FillEllipse(ellipse, m_pBitmapBrush);
+	m_d2dContext->DrawEllipse(ellipse, m_pBlackBrush, 10.f);
+	m_d2dContext->FillEllipse(ellipse, m_pBitmapBrush);
 }
 
 //
@@ -353,13 +414,13 @@ void DemoApp::DrawEllipse()
 //
 void DemoApp::DrawGrid()
 {
-	D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
+	D2D1_SIZE_F rtSize = m_d2dContext->GetSize();
 	int width = static_cast<int>(rtSize.width);
 	int height = static_cast<int>(rtSize.height);
 
 	for (int x = 0; x < width; x += 10)
 	{
-		m_pRenderTarget->DrawLine(
+		m_d2dContext->DrawLine(
 			D2D1::Point2F(static_cast<FLOAT>(x), 0.0f),
 			D2D1::Point2F(static_cast<FLOAT>(x), rtSize.height),
 			m_pLightSlateGrayBrush,
@@ -369,7 +430,7 @@ void DemoApp::DrawGrid()
 
 	for (int y = 0; y < height; y += 10)
 	{
-		m_pRenderTarget->DrawLine(
+		m_d2dContext->DrawLine(
 			D2D1::Point2F(0.0f, static_cast<FLOAT>(y)),
 			D2D1::Point2F(rtSize.width, static_cast<FLOAT>(y)),
 			m_pLightSlateGrayBrush,
@@ -383,7 +444,7 @@ void DemoApp::DrawGrid()
 //
 void DemoApp::DrawRectangles()
 {
-	D2D1_SIZE_F rtSize = m_pRenderTarget->GetSize();
+	D2D1_SIZE_F rtSize = m_d2dContext->GetSize();
 
 	D2D1_RECT_F rectangle1 = D2D1::RectF(
 		rtSize.width / 2 - 50.0f,
@@ -400,24 +461,27 @@ void DemoApp::DrawRectangles()
 	);
 
 	// Draw a filled rectangle.
-	m_pRenderTarget->FillRectangle(&rectangle1, m_pLightSlateGrayBrush);
+	m_d2dContext->FillRectangle(&rectangle1, m_pLightSlateGrayBrush);
 
 	// Draw the outline of a rectangle.
-	m_pRenderTarget->DrawRectangle(&rectangle2, m_pCornflowerBlueBrush);
+	m_d2dContext->DrawRectangle(&rectangle2, m_pCornflowerBlueBrush);
 }
 
 HRESULT DemoApp::OnRender()
 {
 	HRESULT hr = S_OK;
 
-	hr = CreateDeviceResources();
+	if (!m_resourcesValid)
+	{
+		hr = CreateDeviceResources();
+	}
 
 	if (SUCCEEDED(hr))
 	{
-		m_pRenderTarget->BeginDraw();
+		m_d2dContext->BeginDraw();
 
-		m_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
-		m_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::White));
+		m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+		m_d2dContext->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
 		DrawGrid();
 		DrawRectangles();
@@ -425,27 +489,91 @@ HRESULT DemoApp::OnRender()
 		DrawBitmap();
 		DrawGeometry();
 
-		hr = m_pRenderTarget->EndDraw();
+		hr = m_d2dContext->EndDraw();
 	}
 
-	if (hr == D2DERR_RECREATE_TARGET)
+	if (SUCCEEDED(hr))
+	{
+		// Present the swap chain immediately
+		hr = m_swapChain->Present(0, 0);
+	}
+
+	if (hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED)
 	{
 		hr = S_OK;
+		// Recreate device resources then force repaint.
 		DiscardDeviceResources();
+		InvalidateRect(m_hwnd, nullptr, FALSE);
 	}
 
 	return hr;
 }
 
+// Called whenever the application window is resized. Recreates
+// the swap chain with buffers sized to the new window.
 void DemoApp::OnResize(UINT width, UINT height)
 {
-	if (m_pRenderTarget)
+	if (m_d2dContext)
 	{
-		// Note: This method can fail, but it's okay to ignore the
-		// error here, because the error will be returned again
-		// the next time EndDraw is called.
-		m_pRenderTarget->Resize(D2D1::SizeU(width, height));
+		HRESULT hr = S_OK;
+		// Remove the bitmap from rendering device context.
+		m_d2dContext->SetTarget(nullptr);
+
+		// Resize the swap chain.
+		if (SUCCEEDED(hr))
+		{
+			hr = m_swapChain->ResizeBuffers(
+				0,
+				width,
+				height,
+				DXGI_FORMAT_B8G8R8A8_UNORM,
+				0
+			);
+		}
+
+		// Get a surface from the swap chain.
+		IDXGISurface* surface = nullptr;
+		if (SUCCEEDED(hr))
+		{
+			hr = m_swapChain->GetBuffer(
+				0,
+				IID_PPV_ARGS(&surface)
+			);
+		}
+
+		// Create a bitmap pointing to the surface.
+		ID2D1Bitmap1* bitmap = nullptr;
+		if (SUCCEEDED(hr))
+		{
+			FLOAT dpiX, dpiY;
+			m_pDirect2dFactory->GetDesktopDpi(&dpiX, &dpiY);
+			D2D1_BITMAP_PROPERTIES1 properties = D2D1::BitmapProperties1(
+				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+				D2D1::PixelFormat(
+					DXGI_FORMAT_B8G8R8A8_UNORM,
+					D2D1_ALPHA_MODE_IGNORE
+				),
+				dpiX,
+				dpiY
+			);
+			hr = m_d2dContext->CreateBitmapFromDxgiSurface(
+				surface,
+				&properties,
+				&bitmap
+			);
+		}
+
+		// Set bitmap back onto device context.
+		if (SUCCEEDED(hr))
+		{
+			m_d2dContext->SetTarget(bitmap);
+		}
+
+		SafeRelease(&bitmap);
+		SafeRelease(&surface);
+
+		// Force a repaint.
+		InvalidateRect(m_hwnd, nullptr, FALSE);
 	}
 }
-
 

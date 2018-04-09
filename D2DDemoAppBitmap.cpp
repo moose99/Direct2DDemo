@@ -6,7 +6,7 @@
 
 
 HRESULT DemoApp::LoadBitmapFromFile(
-	ID2D1RenderTarget *pRenderTarget,
+	ID2D1DeviceContext* d2dContext,
 	IWICImagingFactory *pIWICFactory,
 	PCWSTR uri,
 	UINT destinationWidth,
@@ -58,7 +58,7 @@ HRESULT DemoApp::LoadBitmapFromFile(
 	// Create a Direct2D bitmap from the WIC bitmap.
 	if (SUCCEEDED(hr))
 	{
-		hr = pRenderTarget->CreateBitmapFromWicBitmap(
+		hr = d2dContext->CreateBitmapFromWicBitmap(
 			pConverter,
 			NULL,
 			ppBitmap

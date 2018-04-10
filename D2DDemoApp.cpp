@@ -25,7 +25,9 @@ DemoApp::DemoApp() :
 	m_d2dDevice(NULL),
 	m_d2dContext(NULL),
 	m_pGaussianBlurEffect(NULL),
-	m_pColorMatrixEffect(NULL)
+	m_pColorMatrixEffect(NULL),
+	m_pFilledGeometryRealization(NULL),
+	m_pStrokedGeometryRealization(NULL)
 {
 }
 
@@ -271,6 +273,21 @@ HRESULT DemoApp::CreateDeviceResources()
 				0, 0, 0, 0);
 			hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
 		}
+		if (SUCCEEDED(hr))
+		{
+			// Create geometry realizations
+			// https://msdn.microsoft.com/en-us/library/windows/desktop/dn363632(v=vs.85).aspx#creating_geometry_realizations
+			float flatteningTolerance = D2D1::ComputeFlatteningTolerance(D2D1::Matrix3x2F::Identity());
+
+			// Create a realization of the filled interior of the path geometry, using the 
+			// recommended flattening tolerance. 
+			hr = m_d2dContext->CreateFilledGeometryRealization(m_pPathGeometry, flatteningTolerance, &m_pFilledGeometryRealization);
+
+			// Create a realization of the stroke (outline) of the path geometry, using the 
+			// recommended flattening tolerance. 
+			hr = m_d2dContext->CreateStrokedGeometryRealization(m_pPathGeometry, flatteningTolerance, 
+				1, NULL, &m_pStrokedGeometryRealization);
+		}
 
 		SafeRelease(&bitmap);
 		SafeRelease(&surface);
@@ -383,6 +400,8 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pBitmap);
 	SafeRelease(&m_pGaussianBlurEffect);
 	SafeRelease(&m_pColorMatrixEffect);
+	SafeRelease(&m_pFilledGeometryRealization);
+	SafeRelease(&m_pStrokedGeometryRealization);
 	SafeRelease(&m_swapChain);
 	SafeRelease(&m_d2dDevice);
 	SafeRelease(&m_d2dContext);
@@ -398,8 +417,22 @@ void DemoApp::DrawGeometry()
 	// Translate drawing by 200 device-independent pixels.
 	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(200.f, 0.f));
 
-	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush, 10.f);
+	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush);
 	m_d2dContext->FillGeometry(m_pPathGeometry, m_pLGBrush);
+
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+}
+
+//
+// Draw the hour glass geometry realizations
+//
+void DemoApp::DrawGeometryRealizations()
+{
+	// Translate drawing by 400 device-independent pixels.
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(400.f, 0.f));
+
+	m_d2dContext->DrawGeometryRealization(m_pStrokedGeometryRealization, m_pBlackBrush);
+	m_d2dContext->DrawGeometryRealization(m_pFilledGeometryRealization, m_pLGBrush);
 
 	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 }
@@ -543,6 +576,7 @@ HRESULT DemoApp::OnRender()
 		DrawEffectBlur();
 		DrawEffectColorMatrix();
 		DrawGeometry();
+		DrawGeometryRealizations();
 
 		hr = m_d2dContext->EndDraw();
 	}

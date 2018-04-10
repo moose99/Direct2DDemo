@@ -6,7 +6,8 @@
 // C RunTime Header Files:
 #include <stdlib.h>
 
-#include <d2d1_1.h>
+//#include <d2d1_1.h>
+#include <d2d1_2.h>
 #include <d2d1helper.h>
 #include <d3d11.h>
 
@@ -69,6 +70,7 @@ private:
 	void DrawEffectBlur();
 	void DrawEffectColorMatrix();
 	void DrawGeometry();
+	void DrawGeometryRealizations();
 
 	// Resize the render target.
 	void OnResize(UINT width, UINT height);
@@ -87,14 +89,14 @@ private:
 	HWND m_hwnd;
 
 	/* device independent resources */
-	ID2D1Factory1* m_pDirect2dFactory;
+	ID2D1Factory2* m_pDirect2dFactory;
 	IWICImagingFactory *m_pWICFactory;
 	ID2D1PathGeometry *m_pPathGeometry;
 
 	/* device dependent resources */
 	IDXGISwapChain* m_swapChain;
-	ID2D1Device* m_d2dDevice;
-	ID2D1DeviceContext* m_d2dContext;
+	ID2D1Device1* m_d2dDevice;
+	ID2D1DeviceContext1* m_d2dContext;
 	ID2D1HwndRenderTarget* m_pRenderTarget;
 	ID2D1SolidColorBrush* m_pLightSlateGrayBrush;
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
@@ -104,4 +106,6 @@ private:
 	ID2D1Bitmap *m_pBitmap;
 	ID2D1Effect *m_pGaussianBlurEffect;
 	ID2D1Effect *m_pColorMatrixEffect;
+	ID2D1GeometryRealization *m_pFilledGeometryRealization;
+	ID2D1GeometryRealization *m_pStrokedGeometryRealization;
 };

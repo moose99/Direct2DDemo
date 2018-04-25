@@ -71,8 +71,10 @@ private:
 	void DrawEffectColorMatrix();
 	void DrawGeometry();
 	void DrawGeometryRealizations();
-	void DrawOpacityMap();
-	HRESULT CreateOpacityMask();
+	void DrawTransparentOpacityMap();
+	void DrawOpaqueOpacityMap();
+	HRESULT CreateOpacityMasks();
+	HRESULT CreateColoredBitmap(unsigned long color, ID2D1Bitmap **bitmap);
 
 	// Resize the render target.
 	void OnResize(UINT width, UINT height);
@@ -104,10 +106,17 @@ private:
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
 	ID2D1SolidColorBrush* m_pBlackBrush;
 	ID2D1BitmapBrush *m_pBitmapBrush;
+	ID2D1BitmapBrush *m_pFgndColorBitmapBrush;
+	ID2D1BitmapBrush *m_pBgndColorBitmapBrush;
 	ID2D1BitmapBrush *m_pOpacityMaskBitmapBrush;
+	ID2D1BitmapBrush *m_pOpacityMaskBitmapBrushInv;
 	ID2D1LinearGradientBrush *m_pLGBrush;
 	ID2D1Bitmap *m_pBitmap;
+	ID2D1Bitmap *m_pBgndColorBitmap;
+	ID2D1Bitmap *m_pFgndColorBitmap;
+	ID2D1Bitmap *m_pTransparentBitmap;
 	ID2D1Bitmap *m_pOpacityMaskBitmap;
+	ID2D1Bitmap *m_pOpacityMaskBitmapInv;
 	ID2D1Effect *m_pGaussianBlurEffect;
 	ID2D1Effect *m_pColorMatrixEffect;
 	ID2D1GeometryRealization *m_pFilledGeometryRealization;

@@ -17,8 +17,10 @@ DemoApp::DemoApp() :
 	m_pCornflowerBlueBrush(NULL),
 	m_pBlackBrush(NULL),
 	m_pBitmapBrush(NULL),
+	m_pOpacityMaskBitmapBrush(NULL),
 	m_pLGBrush(NULL),
 	m_pBitmap(NULL),
+	m_pOpacityMaskBitmap(NULL),
 	m_pWICFactory(NULL),
 	m_pPathGeometry(NULL),
 	m_swapChain(NULL),
@@ -241,7 +243,7 @@ HRESULT DemoApp::CreateDeviceResources()
 		{
 			// Choose the tiling mode for the bitmap brush.
 			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
-				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_WRAP, D2D1_EXTEND_MODE_WRAP);
+				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_CLAMP, D2D1_EXTEND_MODE_CLAMP);
 
 			hr = m_d2dContext->CreateBitmapBrush(
 				m_pBitmap,
@@ -249,6 +251,20 @@ HRESULT DemoApp::CreateDeviceResources()
 				&m_pBitmapBrush
 			);
 		}
+		if (SUCCEEDED(hr))
+		{
+			hr = CreateOpacityMask();	// creates m_pOpacityMaskBitmap
+			// Choose the tiling mode for the opacity mask bitmap brush.
+			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
+				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_CLAMP, D2D1_EXTEND_MODE_CLAMP);
+
+			hr = m_d2dContext->CreateBitmapBrush(
+				m_pOpacityMaskBitmap,
+				brushProperties,
+				&m_pOpacityMaskBitmapBrush
+			);
+		}
+
 		if (SUCCEEDED(hr))
 		{
 			hr = CreateLinearGradientBrush();
@@ -396,8 +412,10 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pCornflowerBlueBrush);
 	SafeRelease(&m_pBlackBrush);
 	SafeRelease(&m_pBitmapBrush);
+	SafeRelease(&m_pOpacityMaskBitmapBrush);
 	SafeRelease(&m_pLGBrush);
 	SafeRelease(&m_pBitmap);
+	SafeRelease(&m_pOpacityMaskBitmap);
 	SafeRelease(&m_pGaussianBlurEffect);
 	SafeRelease(&m_pColorMatrixEffect);
 	SafeRelease(&m_pFilledGeometryRealization);
@@ -553,6 +571,46 @@ void DemoApp::DrawRectangles()
 	m_d2dContext->DrawRectangle(&rectangle2, m_pCornflowerBlueBrush);
 }
 
+HRESULT DemoApp::CreateOpacityMask()
+{
+	const unsigned size = 200U;		// Note: The geometry this is used on is 200x200
+	unsigned long memory[size * size];
+	m_d2dContext->CreateBitmap(D2D1::SizeU(size, size),
+		D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &m_pOpacityMaskBitmap);
+	
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			if (j % 4 == 0)
+			{
+				memory[i*size+j] = 0x00000000;
+			}
+			else
+			{
+				memory[i*size+j] = 0xFFFFFFFF;
+			}
+		}
+	}
+
+	HRESULT hr = m_pOpacityMaskBitmap->CopyFromMemory(nullptr, (byte*)memory, size * 4);
+	return hr;
+}
+
+//
+// Draw opacity map test
+//
+void DemoApp::DrawOpacityMap()
+{
+	// Translate drawing by 200 device-independent pixels.
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(400.f, 0.f));
+
+//	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush);	// stroke
+	m_d2dContext->FillGeometry(m_pPathGeometry, m_pBitmapBrush, m_pOpacityMaskBitmapBrush);
+
+	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+}
+
 HRESULT DemoApp::OnRender()
 {
 	HRESULT hr = S_OK;
@@ -577,6 +635,7 @@ HRESULT DemoApp::OnRender()
 		DrawEffectColorMatrix();
 		DrawGeometry();
 		DrawGeometryRealizations();
+		DrawOpacityMap();
 
 		hr = m_d2dContext->EndDraw();
 	}

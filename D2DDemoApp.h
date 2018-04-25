@@ -71,6 +71,8 @@ private:
 	void DrawEffectColorMatrix();
 	void DrawGeometry();
 	void DrawGeometryRealizations();
+	void DrawOpacityMap();
+	HRESULT CreateOpacityMask();
 
 	// Resize the render target.
 	void OnResize(UINT width, UINT height);
@@ -102,8 +104,10 @@ private:
 	ID2D1SolidColorBrush* m_pCornflowerBlueBrush;
 	ID2D1SolidColorBrush* m_pBlackBrush;
 	ID2D1BitmapBrush *m_pBitmapBrush;
+	ID2D1BitmapBrush *m_pOpacityMaskBitmapBrush;
 	ID2D1LinearGradientBrush *m_pLGBrush;
 	ID2D1Bitmap *m_pBitmap;
+	ID2D1Bitmap *m_pOpacityMaskBitmap;
 	ID2D1Effect *m_pGaussianBlurEffect;
 	ID2D1Effect *m_pColorMatrixEffect;
 	ID2D1GeometryRealization *m_pFilledGeometryRealization;

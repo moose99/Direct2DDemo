@@ -1,6 +1,5 @@
 #include <assert.h>
 #include "Atlas.h"
-#include "D2DDemoApp.h"
 
 Atlas::Atlas() :
 	m_pImageData(nullptr),
@@ -25,7 +24,11 @@ Atlas::~Atlas()
 //
 void Atlas::Destroy()
 {
-	SafeRelease(&m_pBitmap);
+	if (m_pBitmap != nullptr)
+	{
+		m_pBitmap->Release();
+		m_pBitmap = nullptr;
+	}
 	delete[] m_pImageData;
 	m_pImageData = nullptr;
 }

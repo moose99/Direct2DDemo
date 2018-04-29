@@ -151,12 +151,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Atlas.h" />
     <ClInclude Include="D2DDemoApp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Atlas.cpp" />
     <ClCompile Include="D2DDemoApp.cpp" />
     <ClCompile Include="D2DDemoAppBitmap.cpp" />
     <ClCompile Include="D2DDemoAppDeviceContext.cpp" />
+    <ClCompile Include="D2DDemoAppPatterns.cpp" />
     <ClCompile Include="D2DDemoAppWndProc.cpp" />
   </ItemGroup>
   <ItemGroup>

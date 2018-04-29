@@ -12,32 +12,34 @@
 
 DemoApp::DemoApp() :
 	m_resourcesValid(false),
-	m_hwnd(NULL),
-	m_pDirect2dFactory(NULL),
-	m_pLightSlateGrayBrush(NULL),
-	m_pCornflowerBlueBrush(NULL),
-	m_pBlackBrush(NULL),
-	m_pBitmapBrush(NULL),
-	m_pFgndColorBitmapBrush(NULL),
-	m_pBgndColorBitmapBrush(NULL),
-	m_pOpacityMaskBitmapBrush(NULL),
-	m_pOpacityMaskBitmapBrushInv(NULL),
-	m_pLGBrush(NULL),
-	m_pBitmap(NULL),
-	m_pBgndColorBitmap(NULL),
-	m_pFgndColorBitmap(NULL),
-	m_pTransparentBitmap(NULL),
-	m_pOpacityMaskBitmap(NULL),
-	m_pOpacityMaskBitmapInv(NULL),
-	m_pWICFactory(NULL),
-	m_pPathGeometry(NULL),
-	m_swapChain(NULL),
-	m_d2dDevice(NULL),
-	m_d2dContext(NULL),
-	m_pGaussianBlurEffect(NULL),
-	m_pColorMatrixEffect(NULL),
-	m_pFilledGeometryRealization(NULL),
-	m_pStrokedGeometryRealization(NULL)
+	m_hwnd(nullptr),
+	m_pDirect2dFactory(nullptr),
+	m_pLightSlateGrayBrush(nullptr),
+	m_pCornflowerBlueBrush(nullptr),
+	m_pBlackBrush(nullptr),
+	m_pBitmapBrush(nullptr),
+	m_pFgndColorBitmapBrush(nullptr),
+	m_pBgndColorBitmapBrush(nullptr),
+	m_pOpacityMaskBitmapBrush(nullptr),
+	m_pOpacityMaskBitmapBrushInv(nullptr),
+	m_pLGBrush(nullptr),
+	m_pBitmap(nullptr),
+	m_pBgndColorBitmap(nullptr),
+	m_pFgndColorBitmap(nullptr),
+	m_pTransparentBitmap(nullptr),
+	m_pOpacityMaskBitmap(nullptr),
+	m_pOpacityMaskBitmapInv(nullptr),
+	m_pWICFactory(nullptr),
+	m_pPathGeometry(nullptr),
+	m_swapChain(nullptr),
+	m_d2dDevice(nullptr),
+	m_d2dContext(nullptr),
+	m_pGaussianBlurEffect(nullptr),
+	m_pColorMatrixEffect(nullptr),
+	m_pFilledGeometryRealization(nullptr),
+	m_pStrokedGeometryRealization(nullptr),
+	m_pAtlasEffect(nullptr),
+	m_pPatternImageBrush(nullptr)
 {
 }
 
@@ -57,7 +59,7 @@ void DemoApp::RunMessageLoop()
 {
 	MSG msg;
 
-	while (GetMessage(&msg, NULL, 0, 0))
+	while (GetMessage(&msg, nullptr, 0, 0))
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
@@ -81,9 +83,9 @@ HRESULT DemoApp::Initialize()
 		wcex.cbClsExtra = 0;
 		wcex.cbWndExtra = sizeof(LONG_PTR);
 		wcex.hInstance = HINST_THISCOMPONENT;
-		wcex.hbrBackground = NULL;
-		wcex.lpszMenuName = NULL;
-		wcex.hCursor = LoadCursor(NULL, IDI_APPLICATION);
+		wcex.hbrBackground = nullptr;
+		wcex.lpszMenuName = nullptr;
+		wcex.hCursor = LoadCursor(nullptr, IDI_APPLICATION);
 		wcex.lpszClassName = L"D2DDemoApp";
 
 		RegisterClassEx(&wcex);
@@ -106,8 +108,8 @@ HRESULT DemoApp::Initialize()
 			CW_USEDEFAULT,
 			static_cast<UINT>(ceil(WIN_WIDTH * dpiX / 96.f)),
 			static_cast<UINT>(ceil(WIN_HEIGHT * dpiY / 96.f)),
-			NULL,
-			NULL,
+			nullptr,
+			nullptr,
 			HINST_THISCOMPONENT,
 			this
 		);
@@ -147,7 +149,7 @@ HRESULT DemoApp::CreateDeviceIndependentResources()
 		// Create WIC factory.
 		hr = CoCreateInstance(
 			CLSID_WICImagingFactory,
-			NULL,
+			nullptr,
 			CLSCTX_INPROC_SERVER,
 			IID_IWICImagingFactory,
 			reinterpret_cast<void **>(&m_pWICFactory)
@@ -204,6 +206,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				&properties,
 				&bitmap
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -218,6 +221,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				D2D1::ColorF(D2D1::ColorF::LightSlateGray),
 				&m_pLightSlateGrayBrush
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -226,6 +230,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				D2D1::ColorF(D2D1::ColorF::CornflowerBlue),
 				&m_pCornflowerBlueBrush
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -234,6 +239,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				D2D1::ColorF(D2D1::ColorF::Black),
 				&m_pBlackBrush
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -246,6 +252,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				0,	// don't change height
 				&m_pBitmap
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -258,6 +265,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				brushProperties,
 				&m_pBitmapBrush
 			);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -279,23 +287,29 @@ HRESULT DemoApp::CreateDeviceResources()
 			hr = CreateColoredBitmap(0x00000000, &m_pTransparentBitmap);	// creates transparent colored bitmap
 			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
 				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_CLAMP, D2D1_EXTEND_MODE_CLAMP);
+			assert(hr == S_OK);
 
 			hr = m_d2dContext->CreateBitmapBrush(m_pFgndColorBitmap, brushProperties, &m_pFgndColorBitmapBrush);
 			hr = m_d2dContext->CreateBitmapBrush(m_pBgndColorBitmap, brushProperties, &m_pBgndColorBitmapBrush);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
 			hr = CreateLinearGradientBrush();
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
 			hr = m_d2dContext->CreateEffect(CLSID_D2D1GaussianBlur, &m_pGaussianBlurEffect);
+			assert(hr == S_OK);
 			m_pGaussianBlurEffect->SetInput(0, m_pBitmap);
 			hr = m_pGaussianBlurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, 6.0f);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
 			hr = m_d2dContext->CreateEffect(CLSID_D2D1ColorMatrix, &m_pColorMatrixEffect);
+			assert(hr == S_OK);
 			m_pColorMatrixEffect->SetInput(0, m_pBitmap);
 
 			// swap red and blue channels
@@ -306,6 +320,7 @@ HRESULT DemoApp::CreateDeviceResources()
 				0, 0, 0, 1,  // A
 				0, 0, 0, 0);
 			hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
+			assert(hr == S_OK);
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -316,13 +331,22 @@ HRESULT DemoApp::CreateDeviceResources()
 			// Create a realization of the filled interior of the path geometry, using the 
 			// recommended flattening tolerance. 
 			hr = m_d2dContext->CreateFilledGeometryRealization(m_pPathGeometry, flatteningTolerance, &m_pFilledGeometryRealization);
+			assert(hr == S_OK);
 
 			// Create a realization of the stroke (outline) of the path geometry, using the 
 			// recommended flattening tolerance. 
 			hr = m_d2dContext->CreateStrokedGeometryRealization(m_pPathGeometry, flatteningTolerance, 
-				1, NULL, &m_pStrokedGeometryRealization);
+				1, nullptr, &m_pStrokedGeometryRealization);
+			assert(hr == S_OK);
 		}
-
+		if (SUCCEEDED(hr))
+		{
+			hr = CreatePatterns();	// creates atlas and patterns and patternImageBrush
+			assert(hr == S_OK);
+			hr = m_d2dContext->CreateEffect(CLSID_D2D1Atlas, &m_pAtlasEffect);
+			assert(hr == S_OK);
+			m_pAtlasEffect->SetInput(0, m_atlas.GetBitmap());
+		}
 		SafeRelease(&bitmap);
 		SafeRelease(&surface);
 	}
@@ -344,7 +368,7 @@ HRESULT DemoApp::CreateDeviceResources()
 //
 HRESULT DemoApp::CreateLinearGradientBrush()
 {
-	ID2D1GradientStopCollection *pGradientStops = NULL;
+	ID2D1GradientStopCollection *pGradientStops = nullptr;
 
 	// Create a linear gradient.
 	static const D2D1_GRADIENT_STOP stops[] =
@@ -385,7 +409,7 @@ HRESULT DemoApp::CreatePathGeometry()
 
 	if (SUCCEEDED(hr))
 	{
-		ID2D1GeometrySink *pSink = NULL;
+		ID2D1GeometrySink *pSink = nullptr;
 
 		// Write to the path geometry using the geometry sink.
 		hr = m_pPathGeometry->Open(&pSink);
@@ -445,6 +469,11 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pColorMatrixEffect);
 	SafeRelease(&m_pFilledGeometryRealization);
 	SafeRelease(&m_pStrokedGeometryRealization);
+	SafeRelease(&m_pPatternImageBrush);
+	SafeRelease(&m_pAtlasEffect);
+
+	m_atlas.Destroy();
+
 	SafeRelease(&m_swapChain);
 	SafeRelease(&m_d2dDevice);
 	SafeRelease(&m_d2dContext);
@@ -713,7 +742,7 @@ HRESULT DemoApp::OnRender()
 		m_d2dContext->BeginDraw();
 
 		m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
-		m_d2dContext->Clear(D2D1::ColorF(D2D1::ColorF::Beige));
+		m_d2dContext->Clear(D2D1::ColorF(D2D1::ColorF::Gray));
 
 //		DrawGrid();
 		DrawRectangles();
@@ -725,6 +754,7 @@ HRESULT DemoApp::OnRender()
 		DrawGeometryRealizations();
 		DrawTransparentOpacityMap();
 		DrawOpaqueOpacityMap();
+		DrawPatterns();
 
 		hr = m_d2dContext->EndDraw();
 	}

@@ -19,9 +19,9 @@ int WINAPI WinMain(
 	// by the process.
 	// The return value is ignored, because we want to continue running in the
 	// unlikely event that HeapSetInformation fails.
-	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
+	HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
 
-	if (SUCCEEDED(CoInitialize(NULL)))
+	if (SUCCEEDED(CoInitialize(nullptr)))
 	{
 		{
 			DemoApp app;
@@ -82,7 +82,7 @@ LRESULT CALLBACK DemoApp::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
 			case WM_DISPLAYCHANGE:
 			{
-				InvalidateRect(hwnd, NULL, FALSE);
+				InvalidateRect(hwnd, nullptr, FALSE);
 			}
 			result = 0;
 			wasHandled = true;
@@ -91,7 +91,7 @@ LRESULT CALLBACK DemoApp::WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			case WM_PAINT:
 			{
 				pDemoApp->OnRender();
-				ValidateRect(hwnd, NULL);
+				ValidateRect(hwnd, nullptr);
 			}
 			result = 0;
 			wasHandled = true;

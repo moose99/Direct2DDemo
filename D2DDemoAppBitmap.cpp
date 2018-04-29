@@ -14,15 +14,15 @@ HRESULT DemoApp::LoadBitmapFromFile(
 	ID2D1Bitmap **ppBitmap
 )
 {
-	IWICBitmapDecoder *pDecoder = NULL;
-	IWICBitmapFrameDecode *pSource = NULL;
-	IWICStream *pStream = NULL;
-	IWICFormatConverter *pConverter = NULL;
-	IWICBitmapScaler *pScaler = NULL;
+	IWICBitmapDecoder *pDecoder = nullptr;
+	IWICBitmapFrameDecode *pSource = nullptr;
+	IWICStream *pStream = nullptr;
+	IWICFormatConverter *pConverter = nullptr;
+	IWICBitmapScaler *pScaler = nullptr;
 
 	HRESULT hr = pIWICFactory->CreateDecoderFromFilename(
 		uri,
-		NULL,
+		nullptr,
 		GENERIC_READ,
 		WICDecodeMetadataCacheOnLoad,
 		&pDecoder
@@ -48,7 +48,7 @@ HRESULT DemoApp::LoadBitmapFromFile(
 			pSource,
 			GUID_WICPixelFormat32bppPBGRA,
 			WICBitmapDitherTypeNone,
-			NULL,
+			nullptr,
 			0.f,
 			WICBitmapPaletteTypeMedianCut
 		);
@@ -59,7 +59,7 @@ HRESULT DemoApp::LoadBitmapFromFile(
 	{
 		hr = d2dContext->CreateBitmapFromWicBitmap(
 			pConverter,
-			NULL,
+			nullptr,
 			ppBitmap
 		);
 	}

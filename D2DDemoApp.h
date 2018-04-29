@@ -1,17 +1,15 @@
 #pragma once
 
-// Windows Header Files:
 #include <windows.h>
-
-// C RunTime Header Files:
 #include <stdlib.h>
 
-//#include <d2d1_1.h>
 #include <d2d1_2.h>
 #include <d2d1helper.h>
 #include <d3d11.h>
 
 #include <wincodec.h>
+
+#include "Atlas.h"
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #define HINST_THISCOMPONENT ((HINSTANCE)&__ImageBase)
@@ -19,13 +17,12 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 template<class Interface>
 inline void SafeRelease(Interface **ppInterfaceToRelease)
 {
-	if (*ppInterfaceToRelease != NULL)
+	if (*ppInterfaceToRelease != nullptr)
 	{
 		(*ppInterfaceToRelease)->Release();
-		(*ppInterfaceToRelease) = NULL;
+		(*ppInterfaceToRelease) = nullptr;
 	}
 }
-
 
 class DemoApp
 {
@@ -73,6 +70,9 @@ private:
 	void DrawGeometryRealizations();
 	void DrawTransparentOpacityMap();
 	void DrawOpaqueOpacityMap();
+	void DrawPatterns();
+
+	HRESULT CreatePatterns();
 	HRESULT CreateOpacityMasks();
 	HRESULT CreateColoredBitmap(unsigned long color, ID2D1Bitmap **bitmap);
 
@@ -121,4 +121,7 @@ private:
 	ID2D1Effect *m_pColorMatrixEffect;
 	ID2D1GeometryRealization *m_pFilledGeometryRealization;
 	ID2D1GeometryRealization *m_pStrokedGeometryRealization;
+	ID2D1ImageBrush *m_pPatternImageBrush;
+	ID2D1Effect *m_pAtlasEffect;
+	Atlas m_atlas;
 };

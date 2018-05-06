@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #include "D2DDemoApp.h"
+#include "AdapterInfo.h"
 
 #define WIN_WIDTH 1024
 #define WIN_HEIGHT 768
@@ -120,6 +121,11 @@ HRESULT DemoApp::Initialize()
 			UpdateWindow(m_hwnd);
 		}
 	}
+
+	// dump adapter info
+	AdapterInfo aInfo;
+	std::wstring adapterDesc = aInfo.GetAdapterInfo();
+	OutputDebugString(adapterDesc.c_str());
 
 	return hr;
 }

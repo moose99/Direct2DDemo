@@ -85,15 +85,14 @@ HRESULT DemoApp::CreatePatterns()
 
 		// connect color matrix effect to pattern image brush
 		ID2D1Image *pPatternImage = nullptr;
-		ID2D1Image *pImageOut = nullptr;
 
+		// PATTERN -> COLORMATRIX -> TILE
 		m_pPatternImageBrush->GetImage(&pPatternImage);
-		m_pColorMatrixEffect->SetInput(0, pPatternImage);
-		m_pColorMatrixEffect->GetOutput(&pImageOut);
-		m_pPatternImageBrush->SetImage(pImageOut);
+		m_pColorMatrixEffect->SetInput(0, pPatternImage);	
+		m_pTileEffect->SetInputEffect( 0, m_pColorMatrixEffect );
+		m_pTileEffect->SetValue( D2D1_TILE_PROP_RECT, D2D1::RectF( 0.0f, 0.0f, PATTERN_SIZE, PATTERN_SIZE ) );
 
 		SafeRelease(&pPatternImage);
-		SafeRelease(&pImageOut);
 	}
 
 	return hr;
@@ -118,19 +117,29 @@ void DemoApp::DrawPatterns()
 	D2D1_RECT_F rect = m_atlas.GetImageRect(0);
 	m_pPatternImageBrush->SetSourceRectangle(&rect);
 
-	// change color of pattern image to blue
+	// change fg color of pattern image to blue
+	D2D_COLOR_F blue = { 0,0,1,1 };
 	D2D1_MATRIX_5X4_F matrix = D2D1::Matrix5x4F(
-		0, 0, 0, 0,  // R
-		0, 0, 0, 0,  // G
-		0, 0, 1, 0,  // B
-		0, 0, 0, 1,  // A
-		0, 0, 0, 0);
+		blue.r, 0,		0,		0,		// R
+		0,		blue.g, 0,		0,		// G
+		0,		0,		blue.b, 0,		// B
+		0,		0,		0,		blue.a, // A
+		0,		0,		0,		0);
 	hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
 	assert(hr == S_OK);
 #endif
 
-	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush);	// stroke
-	m_d2dContext->FillGeometry(m_pPathGeometry, m_pPatternImageBrush);
+	// STROKE
+	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush);
+
+	// FILL
+	m_d2dContext->PushLayer( D2D1::LayerParameters( D2D1::InfiniteRect(), m_pPathGeometry ), NULL );
+	D2D_COLOR_F black= { 0,0,0,0 };	// bg color
+	D2D_COLOR_F red = { 1,0,0,1 };	// bg color
+	m_d2dContext->Clear( red ); //(in background color or transparent black depending on opaque or transparent fill style)
+	m_d2dContext->DrawImage( m_pTileEffect );
+	m_d2dContext->PopLayer();
+
 	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
 }
 

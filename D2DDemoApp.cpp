@@ -37,6 +37,7 @@ DemoApp::DemoApp() :
 	m_d2dContext(nullptr),
 	m_pGaussianBlurEffect(nullptr),
 	m_pColorMatrixEffect(nullptr),
+	m_pTileEffect( nullptr ),
 	m_pFilledGeometryRealization(nullptr),
 	m_pStrokedGeometryRealization(nullptr),
 	m_pAtlasEffect(nullptr),
@@ -316,17 +317,11 @@ HRESULT DemoApp::CreateDeviceResources()
 		{
 			hr = m_d2dContext->CreateEffect(CLSID_D2D1ColorMatrix, &m_pColorMatrixEffect);
 			assert(hr == S_OK);
-			m_pColorMatrixEffect->SetInput(0, m_pBitmap);
-
-			// swap red and blue channels
-			D2D1_MATRIX_5X4_F matrix = D2D1::Matrix5x4F(
-				0, 0, 1, 0,  // R
-				0, 1, 0, 0,  // G
-				1, 0, 0, 0,  // B
-				0, 0, 0, 1,  // A
-				0, 0, 0, 0);
-			hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
-			assert(hr == S_OK);
+		}
+		if (SUCCEEDED( hr ))
+		{
+			hr = m_d2dContext->CreateEffect( CLSID_D2D1Tile, &m_pTileEffect);
+			assert( hr == S_OK );
 		}
 		if (SUCCEEDED(hr))
 		{
@@ -477,6 +472,7 @@ void DemoApp::DiscardDeviceResources()
 	SafeRelease(&m_pStrokedGeometryRealization);
 	SafeRelease(&m_pPatternImageBrush);
 	SafeRelease(&m_pAtlasEffect);
+	SafeRelease( &m_pTileEffect );
 
 	m_atlas.Destroy();
 

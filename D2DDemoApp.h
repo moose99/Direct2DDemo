@@ -119,6 +119,7 @@ private:
 	ID2D1Bitmap *m_pOpacityMaskBitmapInv;
 	ID2D1Effect *m_pGaussianBlurEffect;
 	ID2D1Effect *m_pColorMatrixEffect;
+	ID2D1Effect *m_pTileEffect;
 	ID2D1GeometryRealization *m_pFilledGeometryRealization;
 	ID2D1GeometryRealization *m_pStrokedGeometryRealization;
 	ID2D1ImageBrush *m_pPatternImageBrush;

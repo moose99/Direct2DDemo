@@ -64,35 +64,21 @@ HRESULT DemoApp::CreatePatterns()
 	if (hr == S_OK)
 	{
 		// add pattern images to atlas
-		m_atlas.AddPattern(pattern1, 0);
-		m_atlas.AddPattern(pattern2, 1);
-		m_atlas.AddPattern(pattern3, 2);
+		m_atlas.AddPattern(pattern1, 0, PATTERN_SIZE, PATTERN_SIZE );
+		m_atlas.AddPattern(pattern2, 1, PATTERN_SIZE, PATTERN_SIZE );
+		m_atlas.AddPattern(pattern3, 2, PATTERN_SIZE, PATTERN_SIZE );
 
 		// init bitmap from image data
 		hr = m_atlas.GetBitmap()->CopyFromMemory(nullptr, m_atlas.GetImageData(), ATLAS_WIDTH * 4);
 		assert(hr == S_OK);
 
-		// create image brush from atlas
-		hr = m_d2dContext->CreateImageBrush(m_atlas.GetBitmap(),
-			D2D1::ImageBrushProperties(
-				D2D1::RectF(0, 0, ATLAS_WIDTH, ATLAS_HEIGHT),
-				D2D1_EXTEND_MODE_WRAP,
-				D2D1_EXTEND_MODE_WRAP,
-				D2D1_INTERPOLATION_MODE_LINEAR
-			),
-			&m_pPatternImageBrush);
+		m_pAtlasEffect->SetInput( 0, m_atlas.GetBitmap() );
 		assert(hr == S_OK);
 
-		// connect color matrix effect to pattern image brush
-		ID2D1Image *pPatternImage = nullptr;
-
-		// PATTERN -> COLORMATRIX -> TILE
-		m_pPatternImageBrush->GetImage(&pPatternImage);
-		m_pColorMatrixEffect->SetInput(0, pPatternImage);	
+		// ATLAS PATTERN -> COLORMATRIX -> TILE
+		m_pColorMatrixEffect->SetInputEffect(0, m_pAtlasEffect);	
 		m_pTileEffect->SetInputEffect( 0, m_pColorMatrixEffect );
 		m_pTileEffect->SetValue( D2D1_TILE_PROP_RECT, D2D1::RectF( 0.0f, 0.0f, PATTERN_SIZE, PATTERN_SIZE ) );
-
-		SafeRelease(&pPatternImage);
 	}
 
 	return hr;
@@ -103,19 +89,10 @@ void DemoApp::DrawPatterns()
 	m_d2dContext->SetTransform(D2D1::Matrix3x2F::Translation(200.f, 200.f));
 
 	HRESULT hr=S_OK;
-#if 0
-	// I think effects only work with DrawImage
-	D2D1_VECTOR_4F inputRect = m_atlas.GetImageRectAsVec4(0);
-	HRESULT hr = m_pAtlasEffect->SetValue(D2D1_ATLAS_PROP_INPUT_RECT, inputRect);
-	assert(hr == S_OK);
-	ID2D1Image *pImage=nullptr;
-	m_pAtlasEffect->GetOutput(&pImage);			// this doesn't seem to respect the rectangle
-	m_pPatternImageBrush->SetImage(pImage);
-	//m_d2dContext->DrawImage(m_pAtlasEffect);	// this seems to work
-#else
-	// set atlas source rect
-	D2D1_RECT_F rect = m_atlas.GetImageRect(0);
-	m_pPatternImageBrush->SetSourceRectangle(&rect);
+
+	D2D1_RECT_F inputRect;
+	m_atlas.GetImageRect( 2, &inputRect );
+	hr = m_pAtlasEffect->SetValue(D2D1_ATLAS_PROP_INPUT_RECT, inputRect);
 
 	// change fg color of pattern image to blue
 	D2D_COLOR_F blue = { 0,0,1,1 };
@@ -127,7 +104,6 @@ void DemoApp::DrawPatterns()
 		0,		0,		0,		0);
 	hr = m_pColorMatrixEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, matrix);
 	assert(hr == S_OK);
-#endif
 
 	// STROKE
 	m_d2dContext->DrawGeometry(m_pPathGeometry, m_pBlackBrush);

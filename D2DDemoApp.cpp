@@ -342,11 +342,9 @@ HRESULT DemoApp::CreateDeviceResources()
 		}
 		if (SUCCEEDED(hr))
 		{
+			hr = m_d2dContext->CreateEffect( CLSID_D2D1Atlas, &m_pAtlasEffect );
+			assert( hr == S_OK );
 			hr = CreatePatterns();	// creates atlas and patterns and patternImageBrush
-			assert(hr == S_OK);
-			hr = m_d2dContext->CreateEffect(CLSID_D2D1Atlas, &m_pAtlasEffect);
-			assert(hr == S_OK);
-			m_pAtlasEffect->SetInput(0, m_atlas.GetBitmap());
 		}
 		SafeRelease(&bitmap);
 		SafeRelease(&surface);

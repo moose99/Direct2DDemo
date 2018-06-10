@@ -83,11 +83,14 @@ Atlas::Create ( ID2D1RenderTarget *deviceContext, int atlasWidth, int atlasHeigh
 }
 
 //
-// adds a binary pattern to the atlas at the specified index
+// Adds a binary pattern to the atlas at the specified index
+// Unset pixels are transparent BLACK.  Set pixels are opaque WHITE.
 //
 void 
 Atlas::AddPattern ( bool *patternData, int imageIndex, int imageWidth, int imageHeight )
 {
+	const uint32_t setColor = 0xffffffff;	// WHITE ABGR
+
 	// convert binary pattern to image data
 	uint32_t *imageData = new uint32_t[imageHeight * imageWidth];
 	int cnt = 0;
@@ -95,7 +98,7 @@ Atlas::AddPattern ( bool *patternData, int imageIndex, int imageWidth, int image
 	{
 		for (int j = 0; j < imageWidth; j++)
 		{
-			imageData[cnt] = patternData[cnt] == true ? 0xffffffff : 0x00000000;
+			imageData[cnt] = patternData[cnt] == true ? setColor : 0x00000000;
 			cnt++;
 		}
 	}
